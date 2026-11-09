@@ -167,6 +167,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: -7511558181221131132, guid: cec7442a3b1b01147a81ac5b04b61e58, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: e342bf5c9d7fca64387d7bcfc30b9666, type: 2}
     - target: {fileID: 919132149155446097, guid: cec7442a3b1b01147a81ac5b04b61e58, type: 3}
       propertyPath: m_Name
       value: cone
@@ -316,6 +320,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 64.506
       objectReference: {fileID: 0}
+    - target: {fileID: -7511558181221131132, guid: f9e7c58b389ef4b4b9045ed91224ae48, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: e342bf5c9d7fca64387d7bcfc30b9666, type: 2}
     - target: {fileID: 919132149155446097, guid: f9e7c58b389ef4b4b9045ed91224ae48, type: 3}
       propertyPath: m_Name
       value: cube
@@ -373,6 +381,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 241.206
       objectReference: {fileID: 0}
+    - target: {fileID: -7511558181221131132, guid: 3186440319c9ba54497991775e2c30e6, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: e342bf5c9d7fca64387d7bcfc30b9666, type: 2}
     - target: {fileID: 919132149155446097, guid: 3186440319c9ba54497991775e2c30e6, type: 3}
       propertyPath: m_Name
       value: sphere
