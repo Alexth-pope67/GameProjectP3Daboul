@@ -1,20 +1,63 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 
-public class MovementScript: MonoBehaviour
+[RequireComponent(typeof(CharacterController))]
+public class MovementScript : MonoBehaviour
 {
     public float speed = 5.0f;
+    public float jumpHeight = 2.0f;
+    public float gravity = -9.81f;
+
+    private CharacterController characterController;
+    private float verticalVelocity;
+    private bool useArrowKeys;
+
+    void Awake()
+    {
+        characterController = GetComponent<CharacterController>();
+        useArrowKeys = CompareTag("Player2");
+    }
 
     void Update()
     {
-        // 1. Get raw keyboard/joystick input
-        float moveX = Input.GetAxis("Horizontal");
-        float moveZ = Input.GetAxis("Vertical");
+        Vector2 input = Vector2.zero;
+        bool jumpPressed = false;
 
-        // 2. Create a movement direction vector
-        Vector3 direction = new Vector3(moveX, 0f, moveZ);
+        if (Keyboard.current != null)
+        {
+            jumpPressed = useArrowKeys
+                ? Keyboard.current.enterKey.wasPressedThisFrame
+                : Keyboard.current.spaceKey.wasPressedThisFrame;
 
-        // 3. Move the object directly through its transform component
-        // Time.deltaTime ensures consistent speed on all computers
-        transform.Translate(direction * speed * Time.deltaTime, Space.World);
+            if (useArrowKeys)
+            {
+                input = new Vector2(
+                    (Keyboard.current.rightArrowKey.isPressed ? 1f : 0f) - (Keyboard.current.leftArrowKey.isPressed ? 1f : 0f),
+                    (Keyboard.current.upArrowKey.isPressed ? 1f : 0f) - (Keyboard.current.downArrowKey.isPressed ? 1f : 0f));
+            }
+            else
+            {
+                input = new Vector2(
+                    (Keyboard.current.dKey.isPressed ? 1f : 0f) - (Keyboard.current.aKey.isPressed ? 1f : 0f),
+                    (Keyboard.current.wKey.isPressed ? 1f : 0f) - (Keyboard.current.sKey.isPressed ? 1f : 0f));
+            }
+        }
+
+        Vector3 movement = new Vector3(input.x, 0f, input.y).normalized * speed;
+
+        if (characterController.isGrounded)
+        {
+            verticalVelocity = -2f;
+
+            if (jumpPressed)
+            {
+                verticalVelocity = Mathf.Sqrt(jumpHeight * -2f * gravity);
+            }
+        }
+
+        verticalVelocity += gravity * Time.deltaTime;
+        movement.y = verticalVelocity;
+
+        characterController.Move(movement * Time.deltaTime);
     }
 }
