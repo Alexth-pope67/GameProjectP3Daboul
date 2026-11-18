@@ -2,89 +2,161 @@ using UnityEngine;
 
 public class TaggingScript : MonoBehaviour
 {
-    private static GameObject currentTagger;
-    private static bool gameInitialized;
     private TextMesh taggerTitle;
+    private GameObject iconObject;
     private SpriteRenderer taggerImageRenderer;
+    private float baseHeadHeight;
 
+    [Header("Overhead Sprite & Text Settings")]
     public Sprite taggerImage;
+    public float heightAboveHead = 0.8f;
+    public float iconScale = 1.0f;
+    public bool bobUpAndDown = true;
+
+    [Header("Tagging Settings")]
+    public float tagReach = 2.0f;
+    public KeyCode tagKey = KeyCode.E;
 
     void Start()
     {
-        if (!gameInitialized)
-        {
-            GameObject playerOne = GameObject.FindGameObjectWithTag("Player1");
-            GameObject playerTwo = GameObject.FindGameObjectWithTag("Player2");
-
-            if (playerOne != null && playerTwo != null)
-            {
-                currentTagger = Random.Range(0, 2) == 0 ? playerOne : playerTwo;
-                gameInitialized = true;
-            }
-        }
-
-        UpdateTaggerTitle();
+        CalculateHeadHeight();
+        EnsureVisualsExist();
+        UpdateTaggerVisuals();
     }
 
-    void OnControllerColliderHit(ControllerColliderHit hit)
+    private void CalculateHeadHeight()
     {
-        if (currentTagger != gameObject || !hit.collider.CompareTag("Player1") && !hit.collider.CompareTag("Player2"))
+        Collider col = GetComponentInChildren<Collider>();
+        if (col != null)
+        {
+            baseHeadHeight = (col.bounds.max.y - transform.position.y) + heightAboveHead;
+        }
+        else
+        {
+            baseHeadHeight = 2.5f + heightAboveHead;
+        }
+    }
+
+    void Update()
+    {
+        if (TagGameManager.Instance == null || TagGameManager.Instance.RoundEnded)
         {
             return;
         }
 
-        currentTagger = hit.collider.gameObject;
-        UpdateTaggerTitle();
+        CheckManualTag();
+    }
 
-        TaggingScript otherTaggingScript = hit.collider.GetComponent<TaggingScript>();
-        if (otherTaggingScript != null)
+    private void CheckManualTag()
+    {
+        GameObject currentTagger = TagGameManager.Instance.CurrentTagger;
+        GameObject runner = TagGameManager.Instance.Runner;
+
+        if (currentTagger != gameObject || runner == null) return;
+
+        float distance = Vector3.Distance(transform.position, runner.transform.position);
+        if (distance <= tagReach && Input.GetKeyDown(tagKey))
         {
-            otherTaggingScript.UpdateTaggerTitle();
+            TagGameManager.Instance.EndRound(currentTagger, "Tagged!");
         }
     }
 
-    private void UpdateTaggerTitle()
+    void OnControllerColliderHit(ControllerColliderHit hit)
+    {
+        TryTagObject(hit.collider.gameObject);
+    }
+
+    void OnCollisionEnter(Collision collision)
+    {
+        TryTagObject(collision.gameObject);
+    }
+
+    void OnTriggerEnter(Collider other)
+    {
+        TryTagObject(other.gameObject);
+    }
+
+    private void TryTagObject(GameObject hitObject)
+    {
+        if (TagGameManager.Instance == null || TagGameManager.Instance.RoundEnded) return;
+
+        GameObject currentTagger = TagGameManager.Instance.CurrentTagger;
+        GameObject runner = TagGameManager.Instance.Runner;
+
+        if ((currentTagger == gameObject && hitObject == runner) ||
+            (runner == gameObject && hitObject == currentTagger))
+        {
+            TagGameManager.Instance.EndRound(currentTagger, "Tagged!");
+        }
+    }
+
+    public void UpdateTaggerVisuals()
+    {
+        EnsureVisualsExist();
+
+        bool isTagger = TagGameManager.Instance != null && TagGameManager.Instance.CurrentTagger == gameObject;
+        taggerTitle.color = Color.red;
+        taggerTitle.text = isTagger ? "TAGGER" : string.Empty;
+        taggerImageRenderer.sprite = taggerImage;
+        taggerImageRenderer.enabled = isTagger && taggerImage != null;
+    }
+
+    public void ShowWinnerTitle(GameObject winner, string label)
+    {
+        EnsureVisualsExist();
+
+        bool isWinner = (winner == gameObject);
+        taggerTitle.color = Color.green;
+        taggerTitle.text = isWinner ? label : string.Empty;
+        taggerImageRenderer.enabled = false;
+    }
+
+    private void EnsureVisualsExist()
     {
         if (taggerTitle == null)
         {
             GameObject titleObject = new GameObject("TaggerTitle");
             titleObject.transform.SetParent(transform);
-            titleObject.transform.localPosition = Vector3.up * 2.5f;
+            titleObject.transform.localPosition = new Vector3(0f, baseHeadHeight, 0f);
 
             taggerTitle = titleObject.AddComponent<TextMesh>();
             taggerTitle.anchor = TextAnchor.MiddleCenter;
             taggerTitle.alignment = TextAlignment.Center;
             taggerTitle.fontSize = 32;
             taggerTitle.characterSize = 0.1f;
-            taggerTitle.color = Color.red;
         }
 
-        if (taggerImageRenderer == null)
+        if (iconObject == null)
         {
-            GameObject imageObject = new GameObject("TaggerImage");
-            imageObject.transform.SetParent(transform);
-            imageObject.transform.localPosition = Vector3.up * 3.2f;
-            imageObject.transform.localScale = Vector3.one * 0.5f;
+            iconObject = new GameObject("TaggerImage");
+            iconObject.transform.SetParent(transform);
+            iconObject.transform.localPosition = new Vector3(0f, baseHeadHeight + 0.7f, 0f);
+            iconObject.transform.localScale = Vector3.one * iconScale;
 
-            taggerImageRenderer = imageObject.AddComponent<SpriteRenderer>();
-            taggerImageRenderer.sortingOrder = 1;
+            taggerImageRenderer = iconObject.AddComponent<SpriteRenderer>();
+            taggerImageRenderer.sortingOrder = 10;
         }
-
-        taggerTitle.text = currentTagger == gameObject ? "TAGGER" : string.Empty;
-        taggerImageRenderer.sprite = taggerImage;
-        taggerImageRenderer.enabled = currentTagger == gameObject && taggerImage != null;
     }
 
     void LateUpdate()
     {
-        if (taggerTitle != null && Camera.main != null)
+        if (iconObject != null && taggerImageRenderer != null && taggerImageRenderer.enabled)
+        {
+            iconObject.transform.localScale = Vector3.one * iconScale;
+            float bobOffset = bobUpAndDown ? Mathf.Sin(Time.time * 4f) * 0.1f : 0f;
+            iconObject.transform.localPosition = new Vector3(0f, baseHeadHeight + 0.7f + bobOffset, 0f);
+        }
+
+        if (Camera.main == null) return;
+
+        if (taggerTitle != null)
         {
             taggerTitle.transform.rotation = Camera.main.transform.rotation;
         }
 
-        if (taggerImageRenderer != null && Camera.main != null)
+        if (iconObject != null)
         {
-            taggerImageRenderer.transform.rotation = Camera.main.transform.rotation;
+            iconObject.transform.rotation = Camera.main.transform.rotation;
         }
     }
 }

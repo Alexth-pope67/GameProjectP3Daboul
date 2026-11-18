@@ -4,8 +4,8 @@ using UnityEngine.InputSystem;
 [RequireComponent(typeof(CharacterController))]
 public class MovementScript : MonoBehaviour
 {
-    public float speed = 5.0f;
-    public float jumpHeight = 2.0f;
+    public float speed = 10.0f;
+    public float jumpHeight = 2.5f;
     public float gravity = -9.81f;
 
     private CharacterController characterController;
