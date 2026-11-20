@@ -995,7 +995,7 @@ MonoBehaviour:
   restartDelay: 3
   winsNeeded: 3
   characterPrefabs:
-  - {fileID: 6836360022679187319, guid: f80821597ade02548a185c1780ddfb90, type: 3}
+  - {fileID: 7919679316931410970, guid: 33b8120d635f8604ea39dae17ce1af3c, type: 3}
   - {fileID: 316808594790351473, guid: c976751f5edf4ef4db1d008b28f9255a, type: 3}
   - {fileID: 7367941737699217098, guid: 4cd3c1d1d77441e48b8bcad0b640b185, type: 3}
   - {fileID: 2461657281476323263, guid: a38b31e35c0b5da42bd33c2d55932670, type: 3}
@@ -1293,6 +1293,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: -7918335002988649766, guid: 773c3d1c54efbfa4ea2bd2f718cbbf83, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 812f44d3bd5d016418f08bf2858937c1, type: 2}
     - target: {fileID: -5217978706621872809, guid: 773c3d1c54efbfa4ea2bd2f718cbbf83, type: 3}
       propertyPath: m_LocalScale.x
       value: 1250.4955
