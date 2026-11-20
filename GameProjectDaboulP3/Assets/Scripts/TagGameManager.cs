@@ -12,13 +12,20 @@ public class TagGameManager : MonoBehaviour
     private static bool charactersSwapped;
     private static int characterPairIndex;
 
+    // Saved starting positions from the very start of the game
+    private static bool startPositionsSaved;
+    private static Vector3 savedStartPos1;
+    private static Quaternion savedStartRot1;
+    private static Vector3 savedStartPos2;
+    private static Quaternion savedStartRot2;
+
     [Header("Match Rules")]
     public float roundDuration = 45f;
     public float restartDelay = 3f;
     public int winsNeeded = 3;
 
-    [Header("Character Switching (Optional Prefabs)")]
-    [Tooltip("Add character prefabs here to swap them every round. Leave empty to swap existing scene players.")]
+    [Header("Character Switching")]
+    [Tooltip("Add character prefabs here. Player 1 and Player 2 will swap characters each round at their exact starting spots.")]
     public List<GameObject> characterPrefabs = new List<GameObject>();
     public Transform player1SpawnPoint;
     public Transform player2SpawnPoint;
@@ -37,6 +44,7 @@ public class TagGameManager : MonoBehaviour
         player2Score = 0;
         charactersSwapped = false;
         characterPairIndex = 0;
+        startPositionsSaved = false;
     }
 
     void Awake()
@@ -55,16 +63,21 @@ public class TagGameManager : MonoBehaviour
         GameObject playerOne = GameObject.FindGameObjectWithTag("Player1");
         GameObject playerTwo = GameObject.FindGameObjectWithTag("Player2");
 
-        // CASE 1: Character Prefabs are assigned in the Inspector
+        // Save the exact starting spots on the very first round so every round spawns in the exact same places
+        if (!startPositionsSaved)
+        {
+            savedStartPos1 = player1SpawnPoint != null ? player1SpawnPoint.position : (playerOne != null ? playerOne.transform.position : new Vector3(-3f, 1f, 0f));
+            savedStartRot1 = player1SpawnPoint != null ? player1SpawnPoint.rotation : (playerOne != null ? playerOne.transform.rotation : Quaternion.identity);
+
+            savedStartPos2 = player2SpawnPoint != null ? player2SpawnPoint.position : (playerTwo != null ? playerTwo.transform.position : new Vector3(3f, 1f, 0f));
+            savedStartRot2 = player2SpawnPoint != null ? player2SpawnPoint.rotation : (playerTwo != null ? playerTwo.transform.rotation : Quaternion.identity);
+
+            startPositionsSaved = true;
+        }
+
+        // CASE 1: Character Prefabs assigned — spawn swapped characters at the exact saved starting spots
         if (characterPrefabs != null && characterPrefabs.Count >= 2)
         {
-            Vector3 p1Pos = player1SpawnPoint != null ? player1SpawnPoint.position : (playerOne != null ? playerOne.transform.position : new Vector3(-3f, 1f, 0f));
-            Quaternion p1Rot = player1SpawnPoint != null ? player1SpawnPoint.rotation : (playerOne != null ? playerOne.transform.rotation : Quaternion.identity);
-
-            Vector3 p2Pos = player2SpawnPoint != null ? player2SpawnPoint.position : (playerTwo != null ? playerTwo.transform.position : new Vector3(3f, 1f, 0f));
-            Quaternion p2Rot = player2SpawnPoint != null ? player2SpawnPoint.rotation : (playerTwo != null ? playerTwo.transform.rotation : Quaternion.identity);
-
-            // Disable old players immediately so they can't interfere before Destroy finishes
             if (playerOne != null) { playerOne.SetActive(false); Destroy(playerOne); }
             if (playerTwo != null) { playerTwo.SetActive(false); Destroy(playerTwo); }
 
@@ -74,38 +87,49 @@ public class TagGameManager : MonoBehaviour
             GameObject p1Prefab = charactersSwapped ? characterPrefabs[indexB] : characterPrefabs[indexA];
             GameObject p2Prefab = charactersSwapped ? characterPrefabs[indexA] : characterPrefabs[indexB];
 
-            playerOne = Instantiate(p1Prefab, p1Pos, p1Rot);
+            // Spot 1 is ALWAYS Player 1
+            playerOne = Instantiate(p1Prefab, savedStartPos1, savedStartRot1);
             playerOne.tag = "Player1";
-            playerOne.name = "Player1_Character";
+            playerOne.name = "Player1";
 
-            playerTwo = Instantiate(p2Prefab, p2Pos, p2Rot);
+            // Spot 2 is ALWAYS Player 2
+            playerTwo = Instantiate(p2Prefab, savedStartPos2, savedStartRot2);
             playerTwo.tag = "Player2";
-            playerTwo.name = "Player2_Character";
+            playerTwo.name = "Player2";
         }
-        // CASE 2: No prefabs assigned — swap the existing scene characters' positions & tags
-        else if (charactersSwapped && playerOne != null && playerTwo != null)
+        // CASE 2: Existing scene players — place them at the exact saved starting spots and swap characters each round
+        else if (playerOne != null && playerTwo != null)
         {
-            Vector3 tempPos = playerOne.transform.position;
-            Quaternion tempRot = playerOne.transform.rotation;
-
             CharacterController cc1 = playerOne.GetComponent<CharacterController>();
             CharacterController cc2 = playerTwo.GetComponent<CharacterController>();
             if (cc1 != null) cc1.enabled = false;
             if (cc2 != null) cc2.enabled = false;
 
-            playerOne.transform.SetPositionAndRotation(playerTwo.transform.position, playerTwo.transform.rotation);
-            playerTwo.transform.SetPositionAndRotation(tempPos, tempRot);
+            if (charactersSwapped)
+            {
+                // Character B spawns in Spot 1 (as Player1), Character A spawns in Spot 2 (as Player2)
+                playerTwo.transform.SetPositionAndRotation(savedStartPos1, savedStartRot1);
+                playerOne.transform.SetPositionAndRotation(savedStartPos2, savedStartRot2);
 
-            playerOne.tag = "Player2";
-            playerTwo.tag = "Player1";
+                playerTwo.tag = "Player1";
+                playerOne.tag = "Player2";
+
+                GameObject temp = playerOne;
+                playerOne = playerTwo;
+                playerTwo = temp;
+            }
+            else
+            {
+                // Character A spawns in Spot 1 (as Player1), Character B spawns in Spot 2 (as Player2)
+                playerOne.transform.SetPositionAndRotation(savedStartPos1, savedStartRot1);
+                playerTwo.transform.SetPositionAndRotation(savedStartPos2, savedStartRot2);
+
+                playerOne.tag = "Player1";
+                playerTwo.tag = "Player2";
+            }
 
             if (cc1 != null) cc1.enabled = true;
             if (cc2 != null) cc2.enabled = true;
-
-            // Swap references so playerOne always points to the current Player1 tag
-            GameObject tempObj = playerOne;
-            playerOne = playerTwo;
-            playerTwo = tempObj;
         }
 
         if (playerOne != null && playerTwo != null)
@@ -118,11 +142,11 @@ public class TagGameManager : MonoBehaviour
             RoundEnded = false;
             roundInitialized = true;
 
-            Debug.Log($"Round Started! Tagger is: {CurrentTagger.name} ({CurrentTagger.tag})");
+            Debug.Log($"Round Started! Tagger is {CurrentTagger.tag} ({CurrentTagger.name})");
         }
         else
         {
-            Debug.LogError("TagGameManager: Could not find both 'Player1' and 'Player2' tags in the scene!");
+            Debug.LogError("TagGameManager: Could not find both 'Player1' and 'Player2' tags!");
         }
     }
 

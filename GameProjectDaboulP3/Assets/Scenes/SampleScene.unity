@@ -999,7 +999,7 @@ MonoBehaviour:
   - {fileID: 316808594790351473, guid: c976751f5edf4ef4db1d008b28f9255a, type: 3}
   - {fileID: 7367941737699217098, guid: 4cd3c1d1d77441e48b8bcad0b640b185, type: 3}
   - {fileID: 2461657281476323263, guid: a38b31e35c0b5da42bd33c2d55932670, type: 3}
-  player1SpawnPoint: {fileID: 4526016}
+  player1SpawnPoint: {fileID: 0}
   player2SpawnPoint: {fileID: 0}
 --- !u!1 &618254073
 GameObject:
@@ -2469,9 +2469,9 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: -180
       objectReference: {fileID: 0}
-    - target: {fileID: 1646519264146228367, guid: c976751f5edf4ef4db1d008b28f9255a, type: 3}
-      propertyPath: iconScale
-      value: 0
+    - target: {fileID: 3617519661380355089, guid: c976751f5edf4ef4db1d008b28f9255a, type: 3}
+      propertyPath: moveSpeed
+      value: 20
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
