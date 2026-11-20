@@ -6,6 +6,7 @@ public class TaggingScript : MonoBehaviour
     private GameObject iconObject;
     private SpriteRenderer taggerImageRenderer;
     private float baseHeadHeight;
+    private bool visualsCreated;
 
     [Header("Overhead Sprite & Text Settings")]
     public Sprite taggerImage;
@@ -14,7 +15,8 @@ public class TaggingScript : MonoBehaviour
     public bool bobUpAndDown = true;
 
     [Header("Tagging Settings")]
-    public float tagReach = 2.0f;
+    public float autoTouchRadius = 1.3f;
+    public float manualTagReach = 2.2f;
     public KeyCode tagKey = KeyCode.E;
 
     void Start()
@@ -33,7 +35,7 @@ public class TaggingScript : MonoBehaviour
         }
         else
         {
-            baseHeadHeight = 2.5f + heightAboveHead;
+            baseHeadHeight = 2.2f + heightAboveHead;
         }
     }
 
@@ -44,10 +46,20 @@ public class TaggingScript : MonoBehaviour
             return;
         }
 
-        CheckManualTag();
+        // Keep overhead sign synced in case GameManager initialized after Start
+        if (visualsCreated && taggerImageRenderer != null)
+        {
+            bool shouldShow = (TagGameManager.Instance.CurrentTagger == gameObject);
+            if (taggerImageRenderer.enabled != (shouldShow && taggerImage != null))
+            {
+                UpdateTaggerVisuals();
+            }
+        }
+
+        CheckProximityAndManualTag();
     }
 
-    private void CheckManualTag()
+    private void CheckProximityAndManualTag()
     {
         GameObject currentTagger = TagGameManager.Instance.CurrentTagger;
         GameObject runner = TagGameManager.Instance.Runner;
@@ -55,7 +67,16 @@ public class TaggingScript : MonoBehaviour
         if (currentTagger != gameObject || runner == null) return;
 
         float distance = Vector3.Distance(transform.position, runner.transform.position);
-        if (distance <= tagReach && Input.GetKeyDown(tagKey))
+
+        // 1. Auto-tag if players get right up against each other (works with any movement script)
+        if (distance <= autoTouchRadius)
+        {
+            TagGameManager.Instance.EndRound(currentTagger, "Tagged!");
+            return;
+        }
+
+        // 2. Manual tag with Tag Key within reach
+        if (tagKey != KeyCode.None && distance <= manualTagReach && Input.GetKeyDown(tagKey))
         {
             TagGameManager.Instance.EndRound(currentTagger, "Tagged!");
         }
@@ -78,13 +99,17 @@ public class TaggingScript : MonoBehaviour
 
     private void TryTagObject(GameObject hitObject)
     {
-        if (TagGameManager.Instance == null || TagGameManager.Instance.RoundEnded) return;
+        if (TagGameManager.Instance == null || TagGameManager.Instance.RoundEnded || hitObject == null) return;
+
+        // Check parent/root in case a child collider (like an arm or body mesh) was hit
+        TaggingScript hitPlayer = hitObject.GetComponentInParent<TaggingScript>();
+        GameObject hitPlayerObj = hitPlayer != null ? hitPlayer.gameObject : hitObject;
 
         GameObject currentTagger = TagGameManager.Instance.CurrentTagger;
         GameObject runner = TagGameManager.Instance.Runner;
 
-        if ((currentTagger == gameObject && hitObject == runner) ||
-            (runner == gameObject && hitObject == currentTagger))
+        if ((currentTagger == gameObject && hitPlayerObj == runner) ||
+            (runner == gameObject && hitPlayerObj == currentTagger))
         {
             TagGameManager.Instance.EndRound(currentTagger, "Tagged!");
         }
@@ -92,7 +117,11 @@ public class TaggingScript : MonoBehaviour
 
     public void UpdateTaggerVisuals()
     {
-        EnsureVisualsExist();
+        if (!visualsCreated)
+        {
+            CalculateHeadHeight();
+            EnsureVisualsExist();
+        }
 
         bool isTagger = TagGameManager.Instance != null && TagGameManager.Instance.CurrentTagger == gameObject;
         taggerTitle.color = Color.red;
@@ -103,7 +132,11 @@ public class TaggingScript : MonoBehaviour
 
     public void ShowWinnerTitle(GameObject winner, string label)
     {
-        EnsureVisualsExist();
+        if (!visualsCreated)
+        {
+            CalculateHeadHeight();
+            EnsureVisualsExist();
+        }
 
         bool isWinner = (winner == gameObject);
         taggerTitle.color = Color.green;
@@ -113,29 +146,27 @@ public class TaggingScript : MonoBehaviour
 
     private void EnsureVisualsExist()
     {
-        if (taggerTitle == null)
-        {
-            GameObject titleObject = new GameObject("TaggerTitle");
-            titleObject.transform.SetParent(transform);
-            titleObject.transform.localPosition = new Vector3(0f, baseHeadHeight, 0f);
+        if (visualsCreated) return;
 
-            taggerTitle = titleObject.AddComponent<TextMesh>();
-            taggerTitle.anchor = TextAnchor.MiddleCenter;
-            taggerTitle.alignment = TextAlignment.Center;
-            taggerTitle.fontSize = 32;
-            taggerTitle.characterSize = 0.1f;
-        }
+        GameObject titleObject = new GameObject("TaggerTitle");
+        titleObject.transform.SetParent(transform);
+        titleObject.transform.localPosition = new Vector3(0f, baseHeadHeight, 0f);
 
-        if (iconObject == null)
-        {
-            iconObject = new GameObject("TaggerImage");
-            iconObject.transform.SetParent(transform);
-            iconObject.transform.localPosition = new Vector3(0f, baseHeadHeight + 0.7f, 0f);
-            iconObject.transform.localScale = Vector3.one * iconScale;
+        taggerTitle = titleObject.AddComponent<TextMesh>();
+        taggerTitle.anchor = TextAnchor.MiddleCenter;
+        taggerTitle.alignment = TextAlignment.Center;
+        taggerTitle.fontSize = 32;
+        taggerTitle.characterSize = 0.1f;
 
-            taggerImageRenderer = iconObject.AddComponent<SpriteRenderer>();
-            taggerImageRenderer.sortingOrder = 10;
-        }
+        iconObject = new GameObject("TaggerImage");
+        iconObject.transform.SetParent(transform);
+        iconObject.transform.localPosition = new Vector3(0f, baseHeadHeight + 0.7f, 0f);
+        iconObject.transform.localScale = Vector3.one * iconScale;
+
+        taggerImageRenderer = iconObject.AddComponent<SpriteRenderer>();
+        taggerImageRenderer.sortingOrder = 100;
+
+        visualsCreated = true;
     }
 
     void LateUpdate()

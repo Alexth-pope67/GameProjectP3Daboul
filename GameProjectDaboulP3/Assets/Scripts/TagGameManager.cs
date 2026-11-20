@@ -7,7 +7,6 @@ public class TagGameManager : MonoBehaviour
 {
     public static TagGameManager Instance { get; private set; }
 
-    // Persistent match state across round reloads
     private static int player1Score;
     private static int player2Score;
     private static bool charactersSwapped;
@@ -48,72 +47,66 @@ public class TagGameManager : MonoBehaviour
             return;
         }
         Instance = this;
+        SetupAndInitializeRound();
     }
 
-    void Start()
+    private void SetupAndInitializeRound()
     {
-        SetupCharactersForRound();
-        InitializeRound();
-    }
-
-    private void SetupCharactersForRound()
-    {
-        GameObject existingP1 = GameObject.FindGameObjectWithTag("Player1");
-        GameObject existingP2 = GameObject.FindGameObjectWithTag("Player2");
+        GameObject playerOne = GameObject.FindGameObjectWithTag("Player1");
+        GameObject playerTwo = GameObject.FindGameObjectWithTag("Player2");
 
         // CASE 1: Character Prefabs are assigned in the Inspector
         if (characterPrefabs != null && characterPrefabs.Count >= 2)
         {
-            Vector3 p1Pos = player1SpawnPoint != null ? player1SpawnPoint.position : (existingP1 != null ? existingP1.transform.position : new Vector3(-3f, 1f, 0f));
-            Quaternion p1Rot = player1SpawnPoint != null ? player1SpawnPoint.rotation : (existingP1 != null ? existingP1.transform.rotation : Quaternion.identity);
+            Vector3 p1Pos = player1SpawnPoint != null ? player1SpawnPoint.position : (playerOne != null ? playerOne.transform.position : new Vector3(-3f, 1f, 0f));
+            Quaternion p1Rot = player1SpawnPoint != null ? player1SpawnPoint.rotation : (playerOne != null ? playerOne.transform.rotation : Quaternion.identity);
 
-            Vector3 p2Pos = player2SpawnPoint != null ? player2SpawnPoint.position : (existingP2 != null ? existingP2.transform.position : new Vector3(3f, 1f, 0f));
-            Quaternion p2Rot = player2SpawnPoint != null ? player2SpawnPoint.rotation : (existingP2 != null ? existingP2.transform.rotation : Quaternion.identity);
+            Vector3 p2Pos = player2SpawnPoint != null ? player2SpawnPoint.position : (playerTwo != null ? playerTwo.transform.position : new Vector3(3f, 1f, 0f));
+            Quaternion p2Rot = player2SpawnPoint != null ? player2SpawnPoint.rotation : (playerTwo != null ? playerTwo.transform.rotation : Quaternion.identity);
 
-            if (existingP1 != null) Destroy(existingP1);
-            if (existingP2 != null) Destroy(existingP2);
+            // Disable old players immediately so they can't interfere before Destroy finishes
+            if (playerOne != null) { playerOne.SetActive(false); Destroy(playerOne); }
+            if (playerTwo != null) { playerTwo.SetActive(false); Destroy(playerTwo); }
 
             int indexA = characterPairIndex % characterPrefabs.Count;
             int indexB = (characterPairIndex + 1) % characterPrefabs.Count;
 
-            // Swap which prefab each player gets every round
             GameObject p1Prefab = charactersSwapped ? characterPrefabs[indexB] : characterPrefabs[indexA];
             GameObject p2Prefab = charactersSwapped ? characterPrefabs[indexA] : characterPrefabs[indexB];
 
-            GameObject newP1 = Instantiate(p1Prefab, p1Pos, p1Rot);
-            newP1.tag = "Player1";
-            newP1.name = "Player1_Character";
+            playerOne = Instantiate(p1Prefab, p1Pos, p1Rot);
+            playerOne.tag = "Player1";
+            playerOne.name = "Player1_Character";
 
-            GameObject newP2 = Instantiate(p2Prefab, p2Pos, p2Rot);
-            newP2.tag = "Player2";
-            newP2.name = "Player2_Character";
+            playerTwo = Instantiate(p2Prefab, p2Pos, p2Rot);
+            playerTwo.tag = "Player2";
+            playerTwo.name = "Player2_Character";
         }
         // CASE 2: No prefabs assigned — swap the existing scene characters' positions & tags
-        else if (charactersSwapped && existingP1 != null && existingP2 != null)
+        else if (charactersSwapped && playerOne != null && playerTwo != null)
         {
-            Vector3 tempPos = existingP1.transform.position;
-            Quaternion tempRot = existingP1.transform.rotation;
+            Vector3 tempPos = playerOne.transform.position;
+            Quaternion tempRot = playerOne.transform.rotation;
 
-            CharacterController cc1 = existingP1.GetComponent<CharacterController>();
-            CharacterController cc2 = existingP2.GetComponent<CharacterController>();
+            CharacterController cc1 = playerOne.GetComponent<CharacterController>();
+            CharacterController cc2 = playerTwo.GetComponent<CharacterController>();
             if (cc1 != null) cc1.enabled = false;
             if (cc2 != null) cc2.enabled = false;
 
-            existingP1.transform.SetPositionAndRotation(existingP2.transform.position, existingP2.transform.rotation);
-            existingP2.transform.SetPositionAndRotation(tempPos, tempRot);
+            playerOne.transform.SetPositionAndRotation(playerTwo.transform.position, playerTwo.transform.rotation);
+            playerTwo.transform.SetPositionAndRotation(tempPos, tempRot);
 
-            existingP1.tag = "Player2";
-            existingP2.tag = "Player1";
+            playerOne.tag = "Player2";
+            playerTwo.tag = "Player1";
 
             if (cc1 != null) cc1.enabled = true;
             if (cc2 != null) cc2.enabled = true;
-        }
-    }
 
-    private void InitializeRound()
-    {
-        GameObject playerOne = GameObject.FindGameObjectWithTag("Player1");
-        GameObject playerTwo = GameObject.FindGameObjectWithTag("Player2");
+            // Swap references so playerOne always points to the current Player1 tag
+            GameObject tempObj = playerOne;
+            playerOne = playerTwo;
+            playerTwo = tempObj;
+        }
 
         if (playerOne != null && playerTwo != null)
         {
@@ -125,14 +118,11 @@ public class TagGameManager : MonoBehaviour
             RoundEnded = false;
             roundInitialized = true;
 
-            foreach (TaggingScript player in FindObjectsByType<TaggingScript>(FindObjectsSortMode.None))
-            {
-                player.UpdateTaggerVisuals();
-            }
+            Debug.Log($"Round Started! Tagger is: {CurrentTagger.name} ({CurrentTagger.tag})");
         }
         else
         {
-            Debug.LogWarning("TagGameManager: Could not find both Player1 and Player2 tags!");
+            Debug.LogError("TagGameManager: Could not find both 'Player1' and 'Player2' tags in the scene!");
         }
     }
 
@@ -145,7 +135,6 @@ public class TagGameManager : MonoBehaviour
         if (timeRemaining <= 0f)
         {
             timeRemaining = 0f;
-            // Time ran out: the non-tagger (Runner) wins the round
             EndRound(Runner, "Time's up!");
         }
     }
@@ -181,10 +170,8 @@ public class TagGameManager : MonoBehaviour
     {
         yield return new WaitForSeconds(resetMatchScores ? restartDelay + 2f : restartDelay);
 
-        // Swap characters after EVERY round
         charactersSwapped = !charactersSwapped;
 
-        // If a First-to-3 match finished, reset scores and advance to the next pair of characters (if using 3+)
         if (resetMatchScores)
         {
             player1Score = 0;
